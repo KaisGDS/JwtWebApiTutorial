@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace JwtWebApiTutorial.Controllers
 {
@@ -16,16 +17,16 @@ namespace JwtWebApiTutorial.Controllers
         private readonly IConfiguration _configuration;
         private readonly IUserService _userService;
 
-        public AuthController(IConfiguration configuration, IUserService userService) 
-        { 
-            _configuration= configuration;
-            _userService= userService;
+        public AuthController(IConfiguration configuration, IUserService userService)
+        {
+            _configuration = configuration;
+            _userService = userService;          
         }
 
         [HttpGet, Authorize]
         public ActionResult<string> GetInfo()
-        {   
-            var username =  _userService.GetUsername();
+        {
+            var username = _userService.GetUsername();
             return Ok(username);
 
             //var username2 = User.FindFirstValue(ClaimTypes.Name);
@@ -38,7 +39,7 @@ namespace JwtWebApiTutorial.Controllers
         {
             CreatePasswordHash(request.Password, out byte[] passwordHash, out byte[] passwordSalt);
 
-            user.Username= request.Username;
+            user.Username = request.Username;
             user.PasswordHash = passwordHash;
             user.PasswordSalt = passwordSalt;
 
@@ -48,6 +49,7 @@ namespace JwtWebApiTutorial.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<string>> Login(UserDto request)
         {
+          
             if (user.Username != request.Username)
             {
                 return BadRequest("User not found.");
@@ -59,16 +61,69 @@ namespace JwtWebApiTutorial.Controllers
             }
 
             string token = CreateToken(user);
+
+            var refreshToken = GetRefreshToken();
+            SetRefreshToken(refreshToken);
+
             return Ok(token);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<ActionResult<string>> RefreshToken()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+
+            if (!user.RefreshToken.Equals(refreshToken))
+            {
+                return Unauthorized("Invalid Refresh Token.");
+            }
+            else if (user.TokenExpire < DateTime.Now)
+            {
+                return Unauthorized("Toked expired.");
+            }
+
+            string token = CreateToken(user);
+            var newRefreshToken = GetRefreshToken();
+            SetRefreshToken(newRefreshToken);
+
+            return Ok(token);
+        }
+
+
+        private RefreshToken GetRefreshToken()
+        {
+            var refreshToken = new RefreshToken()
+            {
+                Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
+                Expires = DateTime.Now.AddDays(7),
+                Created = DateTime.Now
+            };
+
+            return refreshToken;
+        }
+
+        private void SetRefreshToken(RefreshToken newRegreshToken)
+        {
+            var cookieOptions = new CookieOptions()
+            {
+                HttpOnly = true,
+                Expires = newRegreshToken.Expires,
+            };
+            Response.Cookies.Append("refreshToken", newRegreshToken.Token, cookieOptions);
+
+            user.RefreshToken = newRegreshToken.Token;
+            user.TokenCreated = newRegreshToken.Created;
+            user.TokenExpire = newRegreshToken.Expires;
         }
 
         private string CreateToken(User user)
         {
             List<Claim> claims = new List<Claim>()
             {
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, "Admin")
+                new Claim(ClaimTypes.Name, user.Username)                
             };
+
+            user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
 
             var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("AppSettings:Token").Value));
 

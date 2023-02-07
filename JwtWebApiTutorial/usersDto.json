@@ -1,0 +1,37 @@
+[
+  {
+    "username": "erling",
+    "password": "h@@l@nd1",
+    "roles": [ "Admin", "User" ]
+  },
+  {
+    "username": "gabriel",
+    "password": "J3sus2412",
+    "roles": [ "User" ]
+  },
+  {
+    "username": "kevin",
+    "password": "d3bruyn3",
+    "roles": [ "User" ]
+  },
+  {
+    "username": "johnst",
+    "password": "St0n3sMC",
+    "roles": [ "Admin", "User" ]
+  },
+  {
+    "username": "josep",
+    "password": "gu@rd1olA",
+    "roles": [ "Supervisor" ]
+  },
+  {
+    "username": "mikel",
+    "password": "Art3t@10",
+    "roles": [ "User" ]
+  },
+  {
+    "username": "erling",
+    "password": "h@@l@nd1",
+    "roles": [ "Admin", "User" ]
+  }
+]
